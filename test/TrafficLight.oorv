@@ -1,6 +1,0 @@
-module TrafficLight {
-    class Light {
-        signals:
-            Int color;
-    }
-}
