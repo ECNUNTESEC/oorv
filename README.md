@@ -21,6 +21,9 @@ reported in the paper.
     - [Step 2 — Prepare plot data](#step-2--prepare-plot-data)
     - [Step 3 — Validate completeness](#step-3--validate-completeness)
     - [Running a single workload point](#running-a-single-workload-point)
+  - [Regenerating the Manuscript Figures and Tables](#regenerating-the-manuscript-figures-and-tables)
+    - [Step 1 — Run the benchmark suite](#step-1--run-the-benchmark-suite-1)
+    - [Step 2 — Regenerate plot data from an existing manifest](#step-2--regenerate-plot-data-from-an-existing-manifest)
   - [Rail-Transit Case Study](#rail-transit-case-study)
   - [Shared-Fragment Comparison (RTLola Baseline)](#shared-fragment-comparison-rtlola-baseline)
   - [Windows Peak-Memory Measurement](#windows-peak-memory-measurement)
@@ -58,7 +61,11 @@ target\release\oorv.exe    # Windows
 
 ### Running a specification manually
 
-The general invocation pattern is:
+The monitor takes an OORV specification (`.oorv`) plus a stream of input events.
+Events can be replayed from a CSV file (offline mode) or streamed live through
+standard input (online mode).
+
+**Offline mode** — timestamps are read from the CSV itself:
 
 ```bash
 # Linux / macOS
@@ -67,6 +74,45 @@ The general invocation pattern is:
 # Windows
 .\target\release\oorv.exe <spec.oorv> --offline relative --csv-in <trace.csv> --verbosity <level>
 ```
+
+Example:
+
+```bash
+.\target\release\oorv.exe test02.oorv --offline relative --csv-in test02.csv --verbosity debug
+```
+
+- `<spec.oorv>` is the monitoring specification and `<trace.csv>` a recorded trace.
+- The CSV header names each column after its signal using the
+  `Module::Class::signal` scheme, plus one timestamp column named `time`:
+
+```csv
+Car::Car::uid,Car::Car::a,Car::Car::b,time
+1,10,85,0
+2,-33,-55,0.000001
+```
+
+**Online mode** — each event is timestamped with the wall-clock time at which it
+arrives, and events are streamed through standard input:
+
+```bash
+# Linux / macOS
+./target/release/oorv --online --stdin <spec.oorv>
+
+# Windows
+.\target\release\oorv.exe --online --stdin <spec.oorv>
+```
+
+Example (pipe a CSV stream; its `time` column, if present, is ignored):
+
+```bash
+.\target\release\oorv.exe --online --stdin test02.oorv < test02.csv
+```
+
+In online mode the monitor reads CSV rows from stdin using the same
+`Module::Class::signal` header as offline mode: send the header line first, then
+one data row per event (e.g., from a sensor bridge or a piped CSV stream). The
+`time` column is ignored because each event is timestamped on arrival. The monitor
+keeps reading until standard input is closed.
 
 ---
 
@@ -166,6 +212,32 @@ python3 bench/rq2/verify_rq2_outputs.py bench/results/rq2/showcase_manifest.tsv 
 ```bash
 bash bench/rq2/run_single_workload.sh --objects 48 --constraints 12 --events 1600 --history-depth 8 --periodic-constraints 8 --burst-size 8 --hotset-size 12 --phase-length 128 --label demo_o048_c012_complex
 ```
+
+---
+
+## Regenerating the Manuscript Figures and Tables
+
+The RQ2 figures and tables are generated automatically from benchmark data; no figures are drawn or edited by hand.
+
+### Step 1 — Run the benchmark suite
+
+```bash
+bash bench/rq2/run_showcase_suite.sh --profile paper_longhaul
+```
+
+This generates the benchmark manifest and the plot data used by the paper.
+
+### Step 2 — Regenerate plot data from an existing manifest
+
+If the benchmark results are already available, the plot data can be regenerated without rerunning the suite:
+
+```bash
+python3 bench/rq2/prepare_plot_data.py bench/results/rq2/showcase_manifest.tsv
+```
+
+The generated TSV files are stored under `bench/results/rq2/` and are read directly by the figure templates in `paper/figures/`.
+
+The same process also generates the RQ2 summary table and related manuscript statistics as TeX files under `bench/results/rq2/`.
 
 ---
 
